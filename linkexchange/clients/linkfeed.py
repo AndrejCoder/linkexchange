@@ -20,15 +20,14 @@
 # the modules, but make no requirements on code importing these
 # modules.
 
-import xml.sax
+import logging
 import xml.dom
 import xml.dom.pulldom
-import logging
+import xml.sax
 
-from linkexchange.clients.sape import SapeLikeClient
-from linkexchange.clients.sape import SapeLikeTestServer
-from linkexchange.utils import is_plugin_specifier, load_plugin
-from linkexchange.utils import normalize_uri
+from linkexchange.clients.base import ClientDataError
+from linkexchange.clients.sape import SapeLikeClient, SapeLikeTestServer
+from linkexchange.utils import is_plugin_specifier, load_plugin, normalize_uri
 
 log = logging.getLogger('linkexchange.clients.linkfeed')
 
@@ -97,7 +96,7 @@ class LinkFeedClient(SapeLikeClient):
     def parse_param(self, name, value):
         if name == '__linkfeed_robots__':
             if type(value) == dict:
-                value = value.values()
+                value = list(value.values())
         return super(LinkFeedClient, self).parse_param(name, value)
 
     def get_links_new_page(self, data, request):
@@ -119,17 +118,17 @@ class LinkFeedClient(SapeLikeClient):
             start = data.get('__linkfeed_start__', '')
             end = data.get('__linkfeed_end__', '')
         else:
-            start = end = u''
+            start = end = ''
         if code:
             before_text = data.get('__linkfeed_before_text__', '')
             after_text = data.get('__linkfeed_after_text__', '')
         else:
-            before_text = after_text = u''
+            before_text = after_text = ''
         return start + before_text + code + after_text + end
 
     def parse_data(self, source, url, format):
         def node_text(node):
-            return u''.join([sn.nodeValue for sn in node.childNodes
+            return ''.join([sn.nodeValue for sn in node.childNodes
                 if sn.nodeType == xml.dom.Node.TEXT_NODE])
 
         def parse_xml(events):
@@ -160,7 +159,7 @@ class LinkFeedClient(SapeLikeClient):
                                     [node_text(x) for x in ip_nodes])
                     elif event == xml.dom.pulldom.END_ELEMENT:
                         path.pop()
-            except xml.sax.SAXParseException, e:
+            except xml.sax.SAXParseException as e:
                 log.error("Could not parse XML data: %s: %s", str(e), url)
                 raise ClientDataError('Could not parse XML data: %s' % str(e))
 
@@ -201,7 +200,7 @@ class LinkFeedTestServer(SapeLikeTestServer):
 
         if self.server_format == 'xml':
             pages = '\n'.join([xml_make_page(uri, links)
-                for uri, links in data.items() if uri.startswith('/')])
+                for uri, links in list(data.items()) if uri.startswith('/')])
 
             lines = [
                     '<?xml version="1.0" encoding="UTF-8"?>',

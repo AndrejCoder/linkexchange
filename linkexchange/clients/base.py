@@ -20,22 +20,25 @@
 # the modules, but make no requirements on code importing these
 # modules.
 
-import urlparse
-import Cookie
-import os
-import os.path
+import http.cookies
+import urllib.parse
+
 
 class ClientError(Exception):
     "Generic client error class"
 
+
 class ClientNetworkError(ClientError):
     "Network error occurred when connecting and retrieving client data"
+
 
 class ClientDataError(ClientError):
     "Client data parsing/processing error"
 
+
 class ClientDataAccessError(ClientError):
     "Concurrent data access error"
+
 
 class PageRequest(object):
     """
@@ -44,7 +47,7 @@ class PageRequest(object):
     def __init__(self, url=None, type=None, host=None, uri=None,
             cookies=None, remote_addr=None, meta=None):
         if url:
-            type, host, uri, query, fragment = urlparse.urlsplit(url, 'http')
+            type, host, uri, query, fragment = urllib.parse.urlsplit(url, 'http')
             if not uri:
                 uri = '/'
             if query:
@@ -52,14 +55,15 @@ class PageRequest(object):
         self.type = type or 'http'
         self.host = host
         self.uri = uri
-        if isinstance(cookies, Cookie.BaseCookie):
-            cookies = dict([(k, v.value) for k, v in cookies.items()])
+        if isinstance(cookies, http.cookies.BaseCookie):
+            cookies = dict([(k, v.value) for k, v in list(cookies.items())])
         self.cookies = cookies or {}
         self.remote_addr = remote_addr
         self.meta = meta or {}
 
     def url(self):
         return '%s://%s%s' % (self.type, self.host, self.uri)
+
 
 class PageResponse(object):
     """
@@ -69,6 +73,7 @@ class PageResponse(object):
         self.status = status
         self.body = body
         self.headers = headers or {}
+
 
 class BaseClient(object):
     """
@@ -92,7 +97,7 @@ class BaseClient(object):
         @param request: PageRequest object
         @return: unicode string with HTML
         """
-        return u''
+        return ''
 
     def content_filter(self, request, content):
         """

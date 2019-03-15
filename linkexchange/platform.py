@@ -78,7 +78,7 @@ class Platform(object):
         @param request: PageRequest object or URL string
         @return: list of links as RawLink objects
         """
-        if isinstance(request, basestring):
+        if isinstance(request, str):
             request = PageRequest(url = request)
         result = []
         cl_no = 0
@@ -86,8 +86,8 @@ class Platform(object):
             cl_no += 1
             try:
                 links = cl.get_raw_links(request)
-            except ClientError, e:
-                links = [u'<!-- %s -->' % str(e)]
+            except ClientError as e:
+                links = ['<!-- %s -->' % str(e)]
             raw_links = [RawLink(link_code=l,
                 client=cl, client_no=cl_no) for l in links]
             result.extend(raw_links)
@@ -112,13 +112,13 @@ class Platform(object):
             return fmt
 
         def allocate_link(link, tag_list, link_list):
-            link = unicode(link)
+            link = str(link)
             if '<a ' in link:
                 link_list.append(link)
             else:
                 tag_list.append(link)
 
-        formatters = map(load_formatter, formatters)
+        formatters = list(map(load_formatter, formatters))
         links_pool = self.get_raw_links(request)
         blocks = [None for fmt in formatters]
 
@@ -126,7 +126,7 @@ class Platform(object):
             fmt = formatters[i]
             if fmt.client is None:
                 continue
-            if isinstance(fmt.client, basestring):
+            if isinstance(fmt.client, str):
                 client_no_set = set([int(x.strip())
                     for x in fmt.client.split(',')])
             else:
@@ -161,12 +161,12 @@ class Platform(object):
         @param content: HTML content (full page or fragment) as unicode string
         @return: filtered content as unicode string
         """
-        if isinstance(request, basestring):
+        if isinstance(request, str):
             request = PageRequest(url = request)
         for cl in self.clients:
             try:
                 content = cl.content_filter(request, content)
-            except ClientError, e:
+            except ClientError as e:
                 pass
         return content
 
@@ -175,12 +175,12 @@ class Platform(object):
         @param request: PageRequest object or URL string
         @return: PageResponse object
         """
-        if isinstance(request, basestring):
+        if isinstance(request, str):
             request = PageRequest(url=request)
         for cl in self.clients:
             try:
                 response = cl.handle_request(request)
-            except ClientError, e:
+            except ClientError as e:
                 continue
             if response.status != 404:
                 return response
@@ -192,12 +192,12 @@ class Platform(object):
 
         @param request: PageRequest object or URL string
         """
-        if isinstance(request, basestring):
+        if isinstance(request, str):
             request = PageRequest(url = request)
         for cl in self.clients:
             try:
                 cl.refresh_db(request)
-            except ClientError, e:
+            except ClientError as e:
                 pass
 
 if __name__ == "__main__":

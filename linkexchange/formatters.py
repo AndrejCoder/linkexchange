@@ -58,14 +58,14 @@ class BaseFormatter(object):
         return link
 
     def _format_container(self, tag, id, class_, content):
-        html = u'<' + tag
+        html = '<' + tag
         if id:
-            html += u' id="%s"' % saxutils.escape(id)
+            html += ' id="%s"' % saxutils.escape(id)
         if class_:
-            html += u' class="%s"' % saxutils.escape(class_)
-        html += u'>'
+            html += ' class="%s"' % saxutils.escape(class_)
+        html += '>'
         html += content
-        html += u'</%s>' % tag
+        html += '</%s>' % tag
         return html
 
 class InlineFormatter(BaseFormatter):
@@ -117,12 +117,12 @@ class InlineFormatter(BaseFormatter):
                     map(format_link, links)) + self.epilog
         else:
             css_class = self.class_for_empty
-            content = u''
+            content = ''
         if self.strip:
             html = content
         else:
             html = self._format_container('div', self.id, css_class, content)
-        html += u''.join(tags)
+        html += ''.join(tags)
         return html
 
 class ListFormatter(BaseFormatter):
@@ -165,12 +165,12 @@ class ListFormatter(BaseFormatter):
             if self.suffix:
                 link = self._add_suffix(link, self.suffix)
             if self.li_class:
-                attrs = u' class="%s"' % saxutils.escape(self.li_class)
+                attrs = ' class="%s"' % saxutils.escape(self.li_class)
             else:
-                attrs = u''
-            link = u'<li%s>%s</li>' % (attrs, link)
+                attrs = ''
+            link = '<li%s>%s</li>' % (attrs, link)
             return link
-        content = u''.join(map(format_link, links))
+        content = ''.join(map(format_link, links))
         if self.strip:
             html = content
         else:
@@ -178,8 +178,8 @@ class ListFormatter(BaseFormatter):
                 css_class = self.class_
             else:
                 css_class = self.class_for_empty
-            html_tag = links and u'ul' or self.tag_for_empty
+            html_tag = links and 'ul' or self.tag_for_empty
             html = self._format_container(html_tag, self.id,
                     css_class, content)
-        html += u''.join(tags)
+        html += ''.join(tags)
         return html

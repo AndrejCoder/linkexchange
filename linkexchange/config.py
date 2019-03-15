@@ -21,7 +21,7 @@
 # modules.
 
 """
->>> import StringIO
+>>> from io import StringIO
 >>> from linkexchange import config
 >>> cfg_lines = [
 ...   '[options]',
@@ -77,7 +77,7 @@ True
 """
 
 import sys
-import ConfigParser
+import configparser
 import shlex
 
 from linkexchange.utils import load_plugin
@@ -91,7 +91,7 @@ def file_config(vars, fname, defaults = None, prefix = '',
     if defaults is None:
         defaults = {}
 
-    cp = ConfigParser.ConfigParser(defaults)
+    cp = configparser.ConfigParser(defaults)
     try:
         if hasattr(cp, 'readfp') and hasattr(fname, 'readline'):
             cp.readfp(fname)
@@ -106,8 +106,8 @@ def file_config(vars, fname, defaults = None, prefix = '',
                         result = [fname]
                 else:
                     result = []
-    except (ConfigParser.MissingSectionHeaderError,
-            ConfigParser.ParsingError), e:
+    except (configparser.MissingSectionHeaderError,
+            configparser.ParsingError) as e:
         raise ConfigError("Parsing error: %s" % str(e))
 
     if not result:
@@ -119,7 +119,7 @@ def file_config(vars, fname, defaults = None, prefix = '',
 
     try:
         encoding = cp.get('options', 'config_encoding')
-    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+    except (configparser.NoOptionError, configparser.NoSectionError):
         encoding = default_encoding
 
     for sec in cp.sections():
@@ -135,7 +135,7 @@ def file_config(vars, fname, defaults = None, prefix = '',
         elif sec.startswith('formatter-'):
             fn = int(sec.split('-', 1)[1])
         elif sec == 'options':
-            for k, v in opts.items():
+            for k, v in list(opts.items()):
                 _options[k] = _eval_value(v, encoding)
         if cn:
             _clients.extend([None] * max(0, cn - len(_clients)))
@@ -171,7 +171,7 @@ def _eval_value(value, encoding):
     except ValueError:
         pass
     try:
-        return long(value)
+        return int(value)
     except ValueError:
         pass
     try:
@@ -189,7 +189,7 @@ def _eval_value(value, encoding):
     unquote_str = lambda x: x
     if value.endswith('"'):
         if value.startswith('u"'):
-            conv_str = lambda x: unicode(x, encoding)
+            conv_str = lambda x: str(x, encoding)
             value = value[1:]
         if value.startswith('"'):
             unquote_str = lambda x: ''.join(shlex.split(x))
@@ -198,7 +198,7 @@ def _eval_value(value, encoding):
 def _parse_plugin_spec(dic, encoding):
     opts = {}
     compound = {}
-    for k, v in dic.items():
+    for k, v in list(dic.items()):
         if '.' in k:
             k1, k2 = k.split('.', 1)
             compound.setdefault(k1, {})
@@ -214,7 +214,7 @@ def _parse_plugin_spec(dic, encoding):
             opts[kk][nn] = _eval_value(v, encoding)
         else:
             opts[k] = _eval_value(v, encoding)
-    for k, v in compound.items():
+    for k, v in list(compound.items()):
         opts[k] = _parse_plugin_spec(v, encoding)
     return (opts.pop('type'), [], opts)
 

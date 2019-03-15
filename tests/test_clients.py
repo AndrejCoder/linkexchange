@@ -29,7 +29,7 @@ class NoQueryStringTestMixin:
         self.assertEqual(
                 client.get_raw_links(request) == [], True)
 
-        for test_uri, test_links in self.page_link_map.items():
+        for test_uri, test_links in list(self.page_link_map.items()):
             if '?' in test_uri:
                 continue
             request = self.new_request(uri=test_uri + '?not_exists')
@@ -55,7 +55,7 @@ class NoQueryStringTestMixin:
         self.assertEqual(
                 self.check_code in client.get_raw_links(request)[0], True)
 
-        for test_uri, test_links in self.page_link_map.items():
+        for test_uri, test_links in list(self.page_link_map.items()):
             if '?' in test_uri:
                 continue
             request = self.new_request(uri=test_uri + '?not_exists')

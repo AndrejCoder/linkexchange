@@ -22,17 +22,17 @@
 
 import os
 import random
-import urllib
-import urllib2
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
+import urllib.parse
 import datetime
 import re
 import xml.sax
 import xml.sax.saxutils
 import xml.dom
 import xml.dom.pulldom
-import StringIO
-import HTMLParser
+import io
+import html.parser
 import tempfile
 import logging
 
@@ -117,7 +117,7 @@ class SapeLikeClient(BaseClient):
                 setattr(self, param, kw[param])
         for param in ('db_lifetime', 'db_reloadtime'):
             value = getattr(self, param)
-            if type(value) in (int, long, float):
+            if type(value) in (int, int, float):
                 setattr(self, param, datetime.timedelta(seconds = value))
 
     def normalize_host(self, request):
@@ -156,7 +156,7 @@ class SapeLikeClient(BaseClient):
         if data is None:
             try:
                 self.refresh_data(db_driver, server_list, format, request)
-            except ClientError, e:
+            except ClientError as e:
                 if not save_error(host, {}, e):
                     raise e
             data = db_driver.load(host)
@@ -165,7 +165,7 @@ class SapeLikeClient(BaseClient):
                 self.refresh_data(db_driver, server_list, format, request)
             except ClientDataAccessError:
                 pass
-            except ClientError, e:
+            except ClientError as e:
                 save_error(host, data, e)
             data = db_driver.load(host)
         return data
@@ -230,9 +230,9 @@ class SapeLikeClient(BaseClient):
 
     def deep_server_charset_decode(self, value):
         if type(value) == str:
-            value = unicode(value, self.server_charset)
+            value = str(value, self.server_charset)
         elif type(value) == dict:
-            for k in value.keys():
+            for k in list(value.keys()):
                 value[k] = self.deep_server_charset_decode(value[k])
         elif type(value) == list:
             for i in range(len(value)):
@@ -253,27 +253,27 @@ class SapeLikeClient(BaseClient):
                 raise ClientError(raw_data)
             try:
                 data = phpserialize.loads(raw_data)
-            except ValueError, e:
+            except ValueError as e:
                 log.error("Could not deserialize response from server: %s: %s", str(e), url)
                 raise ClientDataError('Could not deserialize response '
                         'from server: %s' % str(e))
-            for key, value in data.items():
+            for key, value in list(data.items()):
                 if key.startswith('/'):
                     if type(value) == dict:
-                        value = value.values()
-                    yield (normalize_uri(key), map(self.parse_link, value))
+                        value = list(value.values())
+                    yield (normalize_uri(key), list(map(self.parse_link, value)))
                 else:
                     yield (key, self.parse_param(key, value))
 
     def fetch_data(self, url, format):
-        req = urllib2.Request(url)
+        req = urllib.request.Request(url)
         req.add_header('User-Agent', self.user_agent)
         req.add_header('Accept-Charset', self.server_charset)
         try:
             log.debug("Fetching: %s", url)
             f = urlopen_with_timeout(req, self.socket_timeout)
             return self.parse_data(f, url, format)
-        except urlopen_errors, e:
+        except urlopen_errors as e:
             log.error("Network error: %s: %s", str(e), url)
             raise ClientNetworkError('Network error: %s' % str(e))
 
@@ -286,12 +286,12 @@ class SapeLikeClient(BaseClient):
         error = None
         while data is None:
             try:
-                server = server_list.next()
+                server = next(server_list)
                 url = server % dict(user=self.user, host=host)
                 data = self.fetch_data(url, format)
             except StopIteration:
                 raise error
-            except ClientError, e:
+            except ClientError as e:
                 error = e
                 continue
         if not db_driver.save(host, data, blocking=False):
@@ -379,7 +379,7 @@ class SapeClient(SapeLikeClient):
 
     def parse_data(self, source, url, format):
         def node_text(node):
-            return u''.join([sn.nodeValue for sn in node.childNodes
+            return ''.join([sn.nodeValue for sn in node.childNodes
                 if sn.nodeType == xml.dom.Node.TEXT_NODE])
 
         def parse_xml(events):
@@ -411,10 +411,10 @@ class SapeClient(SapeLikeClient):
                                 yield ('__sape_delimiter__', delimiter)
                     elif event == xml.dom.pulldom.END_ELEMENT:
                         path.pop()
-            except xml.sax.SAXParseException, e:
+            except xml.sax.SAXParseException as e:
                 log.error("Could not parse XML data: %s: %s", str(e), url)
                 raise ClientDataError('Could not parse XML data: %s' % str(e))
-            except urlopen_errors, e:
+            except urlopen_errors as e:
                 log.error("Network error: %s: %s", str(e), url)
                 raise ClientNetworkError('Network error: %s' % str(e))
 
@@ -422,13 +422,13 @@ class SapeClient(SapeLikeClient):
             return parse_xml(xml.dom.pulldom.parse(source))
         return super(SapeClient, self).parse_data(source, url, format)
 
-class ContextLinksGenerator(HTMLParser.HTMLParser):
+class ContextLinksGenerator(html.parser.HTMLParser):
     def __init__(self, out, links,
             is_fragment, show_code, new_url_code,
             force_body_sape_index = False,
             exclude_tags = None,
             include_tags = None):
-        HTMLParser.HTMLParser.__init__(self)
+        html.parser.HTMLParser.__init__(self)
         self.out = out
         self.char_buf = []
         self.links = links
@@ -450,10 +450,10 @@ class ContextLinksGenerator(HTMLParser.HTMLParser):
         else:
             ignore = not self.show_code and tag == 'sape_index'
         if not ignore:
-            self.out.write(u'<' + tag)
+            self.out.write('<' + tag)
             for k, v in attrs:
                 self.out.write(' %s="%s"' % (k, xml.sax.saxutils.escape(v)))
-            self.out.write(u'>')
+            self.out.write('>')
         if tag == 'body' and self.show_code:
             if ((not self.is_fragment and self.force_body_sape_index) or
                     self.is_fragment):
@@ -486,10 +486,10 @@ class ContextLinksGenerator(HTMLParser.HTMLParser):
 
     def handle_startendtag(self, tag, attrs):
         self.handle_realdata()
-        self.out.write(u'<' + tag)
+        self.out.write('<' + tag)
         for k, v in attrs:
             self.out.write(' %s="%s"' % (k, xml.sax.saxutils.escape(v)))
-        self.out.write(u'/>')
+        self.out.write('/>')
 
     def handle_data(self, data):
         self.char_buf.append(data)
@@ -538,7 +538,7 @@ class SapeContextClient(SapeClient):
         return []
 
     def get_html_links(self, request):
-        return u''
+        return ''
 
     def content_filter(self, request, content):
         data = self.load_links_data(request)
@@ -556,7 +556,7 @@ class SapeContextClient(SapeClient):
         else:
             is_fragment = True
             content = '<html><body>%s</body></html>' % content
-        out = StringIO.StringIO()
+        out = io.StringIO()
         generator = ContextLinksGenerator(out, links,
                 is_fragment = is_fragment,
                 show_code = show_code,
@@ -574,9 +574,9 @@ class SapeContextClient(SapeClient):
         sentence.replace(' ', r'(\s|(&nbsp;))+')
         return (re.compile(sentence, re.S + re.UNICODE), link)
 
-class ArticleTemplateLinksCutter(HTMLParser.HTMLParser):
+class ArticleTemplateLinksCutter(html.parser.HTMLParser):
     def __init__(self, out, allowed_domains):
-        HTMLParser.HTMLParser.__init__(self)
+        html.parser.HTMLParser.__init__(self)
         self.out = out
         self.char_buf = []
         self.allowed_domains = allowed_domains
@@ -593,19 +593,19 @@ class ArticleTemplateLinksCutter(HTMLParser.HTMLParser):
                 for k, v in attrs:
                     if k == 'href': href = v
                 if href.startswith('http'):
-                    url = urlparse.urlsplit(href)
+                    url = urllib.parse.urlsplit(href)
                     if not url[1] or url[1] not in self.allowed_domains:
-                        self.out.write(u'<noindex>')
+                        self.out.write('<noindex>')
                         self.anchor_needs_noindex[-1] = True
                         attrs = ([(k, v) for k, v in attrs if k != 'rel'] +
                                 [('rel', 'nofollow')])
-        self.out.write(u'<' + tag)
+        self.out.write('<' + tag)
         for k, v in attrs:
             if v is not None:
                 self.out.write(' %s="%s"' % (k, xml.sax.saxutils.escape(v)))
             else:
                 self.out.write(' %s' % k)
-        self.out.write(u'>')
+        self.out.write('>')
         if tag in self.exclude_tags:
             self.exclude_ctx.append(tag)
 
@@ -615,16 +615,16 @@ class ArticleTemplateLinksCutter(HTMLParser.HTMLParser):
         if not self.exclude_ctx:
             if tag == 'a':
                 if self.anchor_needs_noindex.pop():
-                    self.out.write(u'</noindex>')
+                    self.out.write('</noindex>')
         if tag in self.exclude_tags:
             self.exclude_ctx.pop()
 
     def handle_startendtag(self, tag, attrs):
         self.handle_realdata()
-        self.out.write(u'<' + tag)
+        self.out.write('<' + tag)
         for k, v in attrs:
             self.out.write(' %s="%s"' % (k, xml.sax.saxutils.escape(v)))
-        self.out.write(u'/>')
+        self.out.write('/>')
 
     def handle_data(self, data):
         self.char_buf.append(data)
@@ -760,8 +760,8 @@ class SapeArticlesClient(SapeLikeClient):
                 'date_updated': datetime.datetime.now()}
 
         if template_url.startswith('file://'):
-            pathname = os.path.normcase(urllib.url2pathname(
-		    urlparse.urlsplit(template_url)[2]))
+            pathname = os.path.normcase(urllib.request.url2pathname(
+		    urllib.parse.urlsplit(template_url)[2]))
             log.debug("Template URL refer to local file: %s", pathname)
             allow =  pathname.startswith(
 			    os.path.normcase(tempfile.gettempdir()))
@@ -771,16 +771,16 @@ class SapeArticlesClient(SapeLikeClient):
                         template_url)
             url = template_url
         else:
-            url = list(urlparse.urlsplit(template_url))
+            url = list(urllib.parse.urlsplit(template_url))
             url[0:2] = ['http', host]
-            url = urlparse.urlunsplit(url)
+            url = urllib.parse.urlunsplit(url)
 
         log.debug("Fetching template %s: %s", template_id, url)
         try:
             f = urlopen_with_timeout(url, self.socket_timeout)
             raw_data = f.read()
             f.close()
-        except urlopen_errors, e:
+        except urlopen_errors as e:
             log.error("Network error: %s: %s", str(e), url)
             raise ClientNetworkError('Network error: %s' % str(e))
 
@@ -795,16 +795,16 @@ class SapeArticlesClient(SapeLikeClient):
             if m:
                 charset = m.group('charset')
 
-        template['body'] = unicode(raw_data, charset or 'ascii')
+        template['body'] = str(raw_data, charset or 'ascii')
 
-        for field, tag in index.get('template_required_fields', {}).items():
+        for field, tag in list(index.get('template_required_fields', {}).items()):
             if '{%s}' % field not in template['body']:
 		log.error("Missing template field: %s", field)
                 raise ClientDataError('Missing template field: %s' % field)
 
         allowed_domains = set(index['ext_links_allowed'] +
                 [host, 'www.' + host])
-        out = StringIO.StringIO()
+        out = io.StringIO()
         cutter = ArticleTemplateLinksCutter(out, allowed_domains)
         cutter.feed(template['body'])
         cutter.close()
@@ -838,7 +838,7 @@ class SapeArticlesClient(SapeLikeClient):
                 f = urlopen_with_timeout(url, self.socket_timeout)
                 raw_data = f.read()
                 f.close()
-            except urlopen_errors, e:
+            except urlopen_errors as e:
                 log.error("Network error: %s: %s", str(e), url)
                 raise ClientNetworkError('Network error: %s' % str(e))
             if raw_data.startswith('FATAL ERROR:'):
@@ -846,7 +846,7 @@ class SapeArticlesClient(SapeLikeClient):
                 raise ClientError(raw_data)
             try:
                 return phpserialize.loads(raw_data)
-            except ValueError, e:
+            except ValueError as e:
                 log.error("Could not deserialize response from server: %s: %s",
                         str(e), url)
                 raise ClientDataError('Could not deserialize response '
@@ -858,19 +858,19 @@ class SapeArticlesClient(SapeLikeClient):
         article = None
         while article is None:
             try:
-                server = server_list.next()
+                server = next(server_list)
                 url = server % dict(user=self.user, host=host,
                         article_id=article_id)
                 article = do_fetch_article(url)
                 if 'date_updated' in article:
                     article['date_updated'] = datetime.datetime.fromtimestamp(
                             int(article['date_updated']))
-                for k in article.keys():
+                for k in list(article.keys()):
                     if type(article[k]) == str:
-                        article[k] = unicode(article[k], self.server_charset)
+                        article[k] = str(article[k], self.server_charset)
             except StopIteration:
                 raise error
-            except ClientError, e:
+            except ClientError as e:
                 error = e
                 continue
         return article
@@ -902,7 +902,7 @@ class SapeArticlesClient(SapeLikeClient):
                 f = urlopen_with_timeout(url, self.socket_timeout)
                 raw_data = f.read()
                 f.close()
-            except urlopen_errors, e:
+            except urlopen_errors as e:
                 log.error("Network error: %s: %s", str(e), url)
                 raise ClientNetworkError('Network error: %s' % str(e))
             if raw_data.startswith('FATAL ERROR:'):
@@ -916,7 +916,7 @@ class SapeArticlesClient(SapeLikeClient):
         image = None
         while image is None:
             try:
-                server = server_list.next()
+                server = next(server_list)
                 url = server % dict(user=self.user, host=host)
                 if url.endswith('/') and dispenser_path.startswith('/'):
                     url = url[:-1]
@@ -926,7 +926,7 @@ class SapeArticlesClient(SapeLikeClient):
                 image['mime'] = mime or 'image/jpeg'
             except StopIteration:
                 raise error
-            except ClientError, e:
+            except ClientError as e:
                 error = e
                 continue
         return image
@@ -989,7 +989,7 @@ class SapeArticlesClient(SapeLikeClient):
                             template_url, template_id, index)
                 except ClientError:
                     pass
-        for template_url, template in data.items():
+        for template_url, template in list(data.items()):
             index_key = 'template_' + str(template['id'])
             try:
                 template_meta = index[index_key]
@@ -1013,7 +1013,7 @@ class SapeArticlesClient(SapeLikeClient):
         data = self.load_data2(self.article_db_driver, host)
         data_to_update = {}
         data_to_delete = []
-        for article_url, article in data.items():
+        for article_url, article in list(data.items()):
             index_key = 'article_' + str(article_url)
             try:
                 article_meta = index[index_key]
@@ -1036,7 +1036,7 @@ class SapeArticlesClient(SapeLikeClient):
         data = self.load_data2(self.image_db_driver, host)
         data_to_update = {}
         data_to_delete = []
-        for image_url, image in data.items():
+        for image_url, image in list(data.items()):
             index_key = 'image_' + str(image_url)
             try:
                 image_meta = index['image_' + str(image_url)]
@@ -1081,11 +1081,11 @@ class SapeArticlesClient(SapeLikeClient):
     def parse_param(self, name, value):
         if name in ('template_fields', 'ext_links_allowed'):
             if type(value) == dict:
-                value = value.values()
+                value = list(value.values())
         elif name == 'template_required_fields':
             if type(value) == dict and value:
-                if type(value.keys()[0]) == int:
-                    value = value.values()
+                if type(list(value.keys())[0]) == int:
+                    value = list(value.values())
             if type(value) == list:
                 value = dict([(x, None) for x in value])
         return super(SapeArticlesClient, self).parse_param(name, value)
@@ -1098,28 +1098,28 @@ class SapeArticlesClient(SapeLikeClient):
                 raise ClientError(raw_data)
             try:
                 data = phpserialize.loads(raw_data)
-            except ValueError, e:
+            except ValueError as e:
                 log.error("Could not deserialize response from server: %s: %s", str(e), url)
                 raise ClientDataError('Could not deserialize response '
                         'from server: %s' % str(e))
-            for uri, links in data.pop('announcements').items():
+            for uri, links in list(data.pop('announcements').items()):
                 if type(links) == dict:
-                    links = links.values()
+                    links = list(links.values())
                 yield ('announcement_' + normalize_uri(uri),
-                        map(self.parse_link, links))
-            for uri, article_meta in data.pop('articles').items():
+                        list(map(self.parse_link, links)))
+            for uri, article_meta in list(data.pop('articles').items()):
                 article_meta['date_updated'] = datetime.datetime.fromtimestamp(
                         int(article_meta['date_updated']))
                 yield ('article_' + normalize_uri(uri), article_meta)
-            for uri, image_meta in data.pop('images').items():
+            for uri, image_meta in list(data.pop('images').items()):
                 image_meta['date_updated'] = datetime.datetime.fromtimestamp(
                         int(image_meta['date_updated']))
                 yield ('image_' + normalize_uri(uri), image_meta)
-            for tpl_id, template_meta in data.pop('templates').items():
+            for tpl_id, template_meta in list(data.pop('templates').items()):
                 template_meta['lifetime'] = datetime.timedelta(0,
                         int(template_meta['lifetime']))
                 yield ('template_' + str(tpl_id), template_meta)
-            for key, value in data.items():
+            for key, value in list(data.items()):
                 yield (key, self.parse_param(key, value))
 
     def handle_request(self, request):
@@ -1225,15 +1225,15 @@ class SapeTestServer(SapeLikeTestServer):
 
         if self.server_format == 'xml':
             pages = '\n'.join([xml_make_page(uri, links)
-                for uri, links in data.items() if uri.startswith('/')])
+                for uri, links in list(data.items()) if uri.startswith('/')])
 
             lines = [
                     '<?xml version="1.0" encoding="UTF-8"?>',
                     '<sape delimiter="%s">' % data.get('__sape_delimiter__',
-                        u'').encode('utf-8'),
+                        '').encode('utf-8'),
                     pages,
                     '<page uri="*"><![CDATA[%s]]></page>' % data.get(
-                        '__sape_new_url__', u'').encode('utf-8'),
+                        '__sape_new_url__', '').encode('utf-8'),
                     '</sape>']
             return '\n'.join(lines)
         return super(SapeTestServer, self).format_data(data)

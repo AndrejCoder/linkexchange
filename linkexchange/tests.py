@@ -23,8 +23,8 @@
 import sys
 import os
 import tempfile
-import urllib
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 import datetime
 import re
 import signal
@@ -112,8 +112,8 @@ class SimpleFileTestServer(object):
         if raw_data is not None:
             self.raw_data = raw_data
         fo.write(self.raw_data)
-        path = urllib.pathname2url(os.path.realpath(self.filename))
-        self.url = urlparse.urlunsplit(('file', '', path, '', ''))
+        path = urllib.request.pathname2url(os.path.realpath(self.filename))
+        self.url = urllib.parse.urlunsplit(('file', '', path, '', ''))
         self._unlink = os.unlink
 
     def __del__(self):
@@ -160,7 +160,7 @@ class ClientLinksTestMixin(ClientBaseTestMixin):
 
     def test_links_get_raw_links(self):
         client = self.new_client()
-        for test_uri, test_links in self.page_link_map.items():
+        for test_uri, test_links in list(self.page_link_map.items()):
             request = self.new_request(uri=test_uri)
             raw_links = client.get_raw_links(request)
             self.assertEqual(len(raw_links), len(test_links))
@@ -178,7 +178,7 @@ class ClientLinksTestMixin(ClientBaseTestMixin):
         else:
             delim_re = None
 
-        for test_uri, test_links in self.page_link_map.items():
+        for test_uri, test_links in list(self.page_link_map.items()):
             request = self.new_request(uri=test_uri)
             html = client.get_html_links(request)
             links = list(link_re.finditer(html))
@@ -200,7 +200,7 @@ class ClientLinksTestMixin(ClientBaseTestMixin):
 
     def test_links_broken_server(self):
         client = self.new_client(broken_server=True)
-        for test_uri, test_links in self.page_link_map.items():
+        for test_uri, test_links in list(self.page_link_map.items()):
             request = self.new_request(uri=test_uri)
             raw_links = client.get_raw_links(request)
             self.assertEqual(raw_links, [])
@@ -214,7 +214,7 @@ class ClientContentFilterTestMixin(ClientBaseTestMixin):
 
     def test_content_filter(self):
         client = self.new_client()
-        for test_uri, test_content_list in self.page_content_map.items():
+        for test_uri, test_content_list in list(self.page_content_map.items()):
             request = self.new_request(uri=test_uri)
             for test_content in test_content_list:
                 filtered = client.content_filter(

@@ -5,7 +5,7 @@ import tempfile
 
 from linkexchange.platform import Platform
 from linkexchange.config import file_config
-from test_clients import SapeTestServer
+from .test_clients import SapeTestServer
 
 class SapeTestServer1(SapeTestServer):
     data = {
@@ -52,9 +52,9 @@ class PlatformTest(unittest.TestCase):
 
     def test_get_raw_links(self):
         lx = self.platform.get_raw_links('http://example.com/')
-        self.assertEqual(unicode(lx[0]), '<a href="url1">xlink1</a>')
-        self.assertEqual(unicode(lx[1]), '<a href="url2">xlink2</a>')
-        self.assertEqual(unicode(lx[2]), '<a href="url1">ylink1</a>')
+        self.assertEqual(str(lx[0]), '<a href="url1">xlink1</a>')
+        self.assertEqual(str(lx[1]), '<a href="url2">xlink2</a>')
+        self.assertEqual(str(lx[2]), '<a href="url1">ylink1</a>')
 
     def test_get_blocks(self):
         formatters = [
@@ -64,23 +64,23 @@ class PlatformTest(unittest.TestCase):
                 ]
         bx = self.platform.get_blocks(
                 'http://example.com/', formatters)
-        self.assertEqual(unicode(bx[0]),
+        self.assertEqual(str(bx[0]),
                 '<div class="links"><a href="url1">xlink1</a>. '
                 '<a href="url2">xlink2</a>. </div>')
-        self.assertEqual(unicode(bx[1]),
+        self.assertEqual(str(bx[1]),
                 '<ul id="links"><li><a href="url1">ylink1</a></li></ul>')
         bx = self.platform.get_blocks(
                 'http://example.com/notexists', formatters)
-        self.assertEqual(unicode(bx[0]),
+        self.assertEqual(str(bx[0]),
                 '<div class="empty"></div><!--x12345--><!--y12345-->')
-        self.assertEqual(unicode(bx[1]),
+        self.assertEqual(str(bx[1]),
                 '<span id="links"></span>')
         bx = self.platform.get_blocks(
                 'http://example.com/path/1', formatters)
-        self.assertEqual(unicode(bx[0]),
+        self.assertEqual(str(bx[0]),
                 '<div class="links"><a href="url1">xlink1</a>.'
                 ' <a href="url2">xlink2</a>. </div>')
-        self.assertEqual(unicode(bx[1]),
+        self.assertEqual(str(bx[1]),
                 '<ul id="links"><li><a href="url3">xlink3</a></li>'
                 '<li><a href="url4">xlink4</a></li></ul><!--y12345-->')
 
@@ -90,9 +90,9 @@ class PlatformTest(unittest.TestCase):
                 ]
         bx = self.platform.get_blocks(
                 'http://example.com/', formatters)
-        self.assertEqual(unicode(bx[0]),
+        self.assertEqual(str(bx[0]),
                 '<div><a href="url1">ylink1</a></div>')
-        self.assertEqual(unicode(bx[1]),
+        self.assertEqual(str(bx[1]),
                 '<div><a href="url1">xlink1</a>'
                 '<a href="url2">xlink2</a></div>')
 

@@ -22,7 +22,7 @@
 
 import shelve
 import shutil
-import anydbm
+import dbm
 import datetime
 import os
 import os.path
@@ -115,7 +115,7 @@ class MultiHashInFilesMixin:
         self.filename = filename
         if max_lock_time is None:
             max_lock_time = datetime.timedelta(seconds = 600)
-        elif type(max_lock_time) in (int, long, float):
+        elif type(max_lock_time) in (int, int, float):
             max_lock_time = datetime.timedelta(seconds = max_lock_time)
         self.max_lock_time = max_lock_time
         self.no_excl = no_excl
@@ -171,7 +171,7 @@ class MultiHashInFilesMixin:
                 # locking using O_EXCL flag
                 try:
                     fd = os.open(lock_filename, os.O_CREAT | os.O_EXCL)
-                except OSError, e:
+                except OSError as e:
                     error = e
                 else:
                     break
@@ -198,8 +198,8 @@ class MultiHashInFilesMixin:
             # file, so that other precesses/threads can read old data while new
             # data is not completely written
             do_save(real_filename, new_filename, newhash)
-            to_move = zip(self.get_all_files(new_filename),
-                    self.get_all_files(real_filename))
+            to_move = list(zip(self.get_all_files(new_filename),
+                    self.get_all_files(real_filename)))
             for src, dest in to_move:
                 shutil.move(src, dest)
         finally:
@@ -304,7 +304,7 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
         """
         MultiHashInFilesMixin.__init__(self, filename, max_lock_time, no_excl,
                 suffix_list)
-        if isinstance(db_module, basestring):
+        if isinstance(db_module, str):
             db_module = __import__(db_module)
         elif not db_module:
             for mn in ('gdbm', 'dbm', 'dumbdbm'):
@@ -327,7 +327,7 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
     def load(self, hashkey):
         try:
             return shelve.open(self.get_filename(hashkey), 'r')
-        except anydbm.error:
+        except dbm.error:
             raise KeyError(hashkey)
 
     def get_mtime(self, hashkey):
@@ -349,7 +349,7 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
     def save(self, hashkey, newhash, blocking=True):
         def do_save(real_filename, new_filename, newhash):
             if isinstance(newhash, dict):
-                newhash = newhash.items()
+                newhash = list(newhash.items())
             db = self._db_init(new_filename)
             for k, v in newhash:
                 db[k] = v
@@ -359,10 +359,10 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
     def modify(self, hashkey, otherhash, blocking=True):
         def do_modify(real_filename, new_filename, newhash):
             if isinstance(newhash, dict):
-                newhash = newhash.items()
+                newhash = list(newhash.items())
             try:
-                to_copy = zip(self.get_all_files(real_filename),
-                        self.get_all_files(new_filename))
+                to_copy = list(zip(self.get_all_files(real_filename),
+                        self.get_all_files(new_filename)))
                 for src, dest in to_copy:
                     shutil.copy(src, dest)
             except IOError:
@@ -377,8 +377,8 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
     def delete(self, hashkey, keys, blocking=True):
         def do_delete(real_filename, new_filename, keys):
             try:
-                to_copy = zip(self.get_all_files(real_filename),
-                        self.get_all_files(new_filename))
+                to_copy = list(zip(self.get_all_files(real_filename),
+                        self.get_all_files(new_filename)))
                 for src, dest in to_copy:
                     shutil.copy(src, dest)
             except IOError:

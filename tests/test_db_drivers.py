@@ -2,15 +2,15 @@ import unittest
 import tempfile
 import os
 import glob
-import dumbdbm
+import dbm.dumb
 
 try:
-    import gdbm
+    import dbm.gnu
 except ImportError:
     gdbm = None
 
 try:
-    import dbm
+    import dbm.ndbm
 except ImportError:
     dbm = None
 

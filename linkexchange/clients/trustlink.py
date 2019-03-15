@@ -20,7 +20,7 @@
 # the modules, but make no requirements on code importing these
 # modules.
 
-import urlparse
+import urllib.parse
 import logging
 
 from linkexchange.clients.sape import SapeLikeClient
@@ -38,13 +38,13 @@ class TrustLinkClient(SapeLikeClient):
             'http://db.trustlink.ru/%(user)s/%(host)s/UTF-8']
     server_format = 'php'
     force_show_code = False
-    link_template = u"""
+    link_template = """
     <ul>
       <li><a href="%(href)s">%(anchor)s</a></li>
       <li>%(text)s</li>
       <li>%(host)s</li>
     </ul>"""
-    link_template_no_anchor = u"""
+    link_template_no_anchor = """
     <ul>
       <li>%(text)s</li>
       <li>%(host)s</li>
@@ -101,7 +101,7 @@ class TrustLinkClient(SapeLikeClient):
     def parse_param(self, name, value):
         if name == '__trustlink_robots__':
             if type(value) == dict:
-                value = value.values()
+                value = list(value.values())
         return super(TrustLinkClient, self).parse_param(name, value)
 
     def get_links_for_page(self, data, request, uri):
@@ -114,7 +114,7 @@ class TrustLinkClient(SapeLikeClient):
                 return ''
             tpl_vars = link.copy()
             tpl_vars['href'] = link.get('punicode_url', '') or link['url']
-            tpl_vars['host'] = urlparse.urlsplit(
+            tpl_vars['host'] = urllib.parse.urlsplit(
                     link['url'])[1].split(':')[0].lower()
             if tpl_vars['host'].startswith('www.'):
                 tpl_vars['host'] = tpl_vars['host'][len('www.'):]
@@ -128,10 +128,10 @@ class TrustLinkClient(SapeLikeClient):
             except KeyError:
                 links = []
             else:
-                links = map(link_to_html, [test_link] * 4)
+                links = list(map(link_to_html, [test_link] * 4))
         else:
             links = data.get(uri, [])
-        return map(link_to_html, links)
+        return list(map(link_to_html, links))
 
     def get_links_new_page(self, data, request):
         if self.is_check_code_visible(data, request):
@@ -155,7 +155,7 @@ class TrustLinkClient(SapeLikeClient):
             start = data.get('__trustlink_start__', '')
             end = data.get('__trustlink_end__', '')
         else:
-            start = end = u''
+            start = end = ''
         return start + code + end
 
 class TrustLinkTestServer(SapeLikeTestServer):

@@ -86,7 +86,7 @@ def main():
     try:
         file_config(vars, opts.config,
                 defaults=interpolation)
-    except ConfigError, e:
+    except ConfigError as e:
         op.error(str(e))
 
     request_url = opts.request_url

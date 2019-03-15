@@ -22,13 +22,13 @@
 
 import sys
 import pkg_resources
-import urllib
-import urllib2
-import urlparse
-import httplib
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
+import urllib.parse
+import http.client
 import socket
 import logging
-import HTMLParser
+import html.parser
 
 try:
     set
@@ -57,7 +57,7 @@ def load_plugin(space, specifier):
     for ep in pkg_resources.iter_entry_points(space, name):
         try:
             cls = ep.load()
-        except ImportError, e:
+        except ImportError as e:
             error = e
         else:
             return cls(*args, **kwargs)
@@ -96,35 +96,35 @@ def urlopen_with_timeout(url, timeout):
     >>> srv_t.join()
     """
     if sys.version_info >= (2, 6):
-        return urllib2.urlopen(url, None, timeout)
+        return urllib.request.urlopen(url, None, timeout)
 
-    class _NonBlockingHTTPConnection(httplib.HTTPConnection):
+    class _NonBlockingHTTPConnection(http.client.HTTPConnection):
         def connect(self):
-            httplib.HTTPConnection.connect(self)
+            http.client.HTTPConnection.connect(self)
             self.sock.settimeout(timeout)
 
     if sys.version_info < (2, 4):
-        class _NonBlockingHTTP(httplib.HTTP):
+        class _NonBlockingHTTP(http.client.HTTP):
             _connection_class = _NonBlockingHTTPConnection
      
-    class _NonBlockingHTTPHandler(urllib2.HTTPHandler):
+    class _NonBlockingHTTPHandler(urllib.request.HTTPHandler):
         def http_open(self, req):
             if sys.version_info < (2, 4):
                 return self.do_open(_NonBlockingHTTP, req)
             return self.do_open(_NonBlockingHTTPConnection, req)
 
-    return urllib2.build_opener(_NonBlockingHTTPHandler).open(url)
+    return urllib.request.build_opener(_NonBlockingHTTPHandler).open(url)
 
-urlopen_errors = (urllib2.URLError, httplib.HTTPException, OSError,
+urlopen_errors = (urllib.error.URLError, http.client.HTTPException, OSError,
         socket.error, socket.herror, socket.gaierror, socket.timeout)
 
 def normalize_uri(uri):
-    if isinstance(uri, unicode):
+    if isinstance(uri, str):
         uri = uri.encode('utf-8')
-    (s, n, p, q, f) = urlparse.urlsplit(uri)
-    p = urllib.quote(urllib.unquote(p), '/')
+    (s, n, p, q, f) = urllib.parse.urlsplit(uri)
+    p = urllib.parse.quote(urllib.parse.unquote(p), '/')
     p = p[:1] + p[1:].rstrip('/')
-    return urlparse.urlunsplit((s, n, p, q, f))
+    return urllib.parse.urlunsplit((s, n, p, q, f))
 
 def rearrange_blocks(request, blocks, rearrange_map = None):
     """
@@ -156,7 +156,7 @@ def rearrange_blocks(request, blocks, rearrange_map = None):
                 oi = o1
         if o2 > result_len:
             result_len = o2
-    return [result_dic.get(i, u"") for i in range(0, result_len)]
+    return [result_dic.get(i, "") for i in range(0, result_len)]
 
 def parse_rearrange_map(map_str):
     """
@@ -172,7 +172,7 @@ def parse_rearrange_map(map_str):
         o1, o2 = o.split(':')
         return (int(i1), int(i2), int(o1), int(o2))
     try:
-        return map(parse_entry, map_str.split(','))
+        return list(map(parse_entry, map_str.split(',')))
     except ValueError:
         raise ValueError("Invalid rearrange map string")
 
@@ -192,9 +192,9 @@ def configure_logger(handler = None, formatter = None, level = None):
     if level is not None:
         logger.setLevel(level)
 
-class LinkFinder(HTMLParser.HTMLParser):
+class LinkFinder(html.parser.HTMLParser):
     def __init__(self, found_callback=None):
-        HTMLParser.HTMLParser.__init__(self)
+        html.parser.HTMLParser.__init__(self)
         self.char_buf = []
         self.links = []
         if found_callback is None:
