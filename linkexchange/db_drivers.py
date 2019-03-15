@@ -317,10 +317,11 @@ class ShelveMultiHashDriver(MultiHashInFilesMixin, BaseMultiHashDriver):
         self.db_module = db_module
         if self.db_module and not self.suffix_list:
             if self.db_module.__name__ == 'dbm':
-                if 'BSD' in self.db_module.library:
-                    self.suffix_list = ['.db']
-                else:
-                    self.suffix_list = ['.dir', '.pag']
+                # if 'BSD' in self.db_module.library:
+                # self.suffix_list = ['.db']
+                self.suffix_list = []
+                # else:
+                #     self.suffix_list = ['.dir', '.pag']
             elif self.db_module.__name__ == 'dumbdbm':
                 self.suffix_list = ['.dat', '.dir']
 

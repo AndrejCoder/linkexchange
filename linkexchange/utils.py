@@ -122,9 +122,9 @@ def normalize_uri(uri):
     if isinstance(uri, str):
         uri = uri.encode('utf-8')
     (s, n, p, q, f) = urllib.parse.urlsplit(uri)
-    p = urllib.parse.quote(urllib.parse.unquote(p), '/')
+    p = urllib.parse.quote(urllib.parse.unquote(p.decode("utf-8")), '/')
     p = p[:1] + p[1:].rstrip('/')
-    return urllib.parse.urlunsplit((s, n, p, q, f))
+    return urllib.parse.urlunsplit((s.decode("utf-8"), n.decode("utf-8"), p, q.decode("utf-8"), f.decode("utf-8")))
 
 def rearrange_blocks(request, blocks, rearrange_map = None):
     """

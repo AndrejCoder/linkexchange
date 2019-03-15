@@ -50,7 +50,6 @@ try:
 except ImportError:
     phpserialize = None
 
-from linkexchange.tests import SimpleFileTestServer
 from linkexchange.clients.base import BaseClient
 from linkexchange.clients.base import ClientError, \
         ClientNetworkError, ClientDataError, ClientDataAccessError
@@ -230,7 +229,7 @@ class SapeLikeClient(BaseClient):
 
     def deep_server_charset_decode(self, value):
         if type(value) == str:
-            value = str(value, self.server_charset)
+            value = value
         elif type(value) == dict:
             for k in list(value.keys()):
                 value[k] = self.deep_server_charset_decode(value[k])
@@ -799,7 +798,7 @@ class SapeArticlesClient(SapeLikeClient):
 
         for field, tag in list(index.get('template_required_fields', {}).items()):
             if '{%s}' % field not in template['body']:
-		log.error("Missing template field: %s", field)
+                log.error("Missing template field: %s" % field)
                 raise ClientDataError('Missing template field: %s' % field)
 
         allowed_domains = set(index['ext_links_allowed'] +
@@ -1172,139 +1171,139 @@ class SapeArticlesClient(SapeLikeClient):
                     headers={'Content-Type': 'text/html'})
         return PageResponse(status=404)
 
-class SapeLikeTestServer(SimpleFileTestServer):
-    data = None
-    extra_data = None
-    server_format = 'xml'
-
-    def __init__(self, filename=None, data=None, extra_data=None,
-            server_format=None):
-        if data is not None:
-            self.data = data
-        if extra_data is not None:
-            self.extra_data = extra_data
-        if self.extra_data:
-            self.data.update(self.extra_data)
-        if server_format is not None:
-            self.server_format = server_format
-        raw_data = self.format_data(self.data)
-        super(SapeLikeTestServer, self).__init__(filename=filename,
-                raw_data=raw_data)
-
-    def format_data(self, data):
-        if self.server_format == 'php':
-            return phpserialize.dumps(data)
-        return ''
-
-class SapeTestServer(SapeLikeTestServer):
-    """
-    Test server to test Sape clients.
-    """
-    data = {
-        '/': [
-            '<a href="http://example1.com">example text 1</a>',
-            '<a href="http://example2.com">example text 2</a>',
-            ],
-        '/path/1': [
-            '<a href="http://example1.com">example text 1</a>',
-            '<a href="http://example2.com">example text 2</a>',
-            '<a href="http://example3.com">example text 3</a>',
-            '<a href="http://example4.com">example text 4</a>',
-            ],
-        '/path/2': [
-            'Plain text and <a href="url">link text</a>'],
-        '__sape_new_url__': '<!--12345-->',
-        '__sape_delimiter__': '. ',
-        }
-
-    def format_data(self, data):
-        def xml_make_page(uri, links):
-            return '<page uri="%s">%s</page>' % (uri.encode('utf-8'),
-                    ''.join(['<link><![CDATA[%s]]></link>' % s.encode('utf-8')
-                        for s in links]))
-
-        if self.server_format == 'xml':
-            pages = '\n'.join([xml_make_page(uri, links)
-                for uri, links in list(data.items()) if uri.startswith('/')])
-
-            lines = [
-                    '<?xml version="1.0" encoding="UTF-8"?>',
-                    '<sape delimiter="%s">' % data.get('__sape_delimiter__',
-                        '').encode('utf-8'),
-                    pages,
-                    '<page uri="*"><![CDATA[%s]]></page>' % data.get(
-                        '__sape_new_url__', '').encode('utf-8'),
-                    '</sape>']
-            return '\n'.join(lines)
-        return super(SapeTestServer, self).format_data(data)
-
-class SapeArticlesIndexTestServer(SapeLikeTestServer):
-    server_format = 'php'
-    data = {
-            'announcements': {
-                '/': [
-                    '<a href="/articles/1">ann link 1</a>',
-                    '<a href="/articles/1">ann link 2</a>'],
-                },
-            'articles': {
-                '/articles/1': {
-                    'id': '1',
-                    'date_updated': '0',
-                    'template_id': '1',
-                    },
-                },
-            'images': {},
-            'templates': {
-                '1': {
-                    'lifetime': '3600',
-                    },
-                },
-            'template_fields': [
-                'title', 'keywords', 'header', 'body',
-                ],
-            'template_required_fields': {
-		'title': 'title',
-		'keywords': 'meta',
-		'header': 'h1',
-		'body': 'body',
-		},
-            'ext_links_allowed': [],
-            'checkCode': '<!-- announcements place -->',
-            'announcements_delimiter': '|',
-            }
-
-    def __init__(self, template_urls=[], **kw):
-        kw.setdefault('data', self.data)
-        for template_id, template_url in template_urls:
-            kw['data']['templates'][template_id]['url'] = template_url
-        super(SapeArticlesIndexTestServer, self).__init__(**kw)
-
-class SapeArticlesArticleTestServer(SapeLikeTestServer):
-    server_format = 'php'
-    data = {
-            'date_updated': '0',
-            'title': 'The article title',
-            'keywords': 'The keywords',
-            'header': 'The article header',
-            'body': '<p>The article <a href="http://example.com">body</a>.</p>',
-            }
-
-class SapeArticlesTemplateTestServer(SimpleFileTestServer):
-    raw_data = """
-    <html>
-      <head>
-        <title>{title}</title>
-        <meta name="keywords" content="{keywords}"/>
-      </head>
-    <body>
-      <h1>{header}</h1>
-      {body}
-      <div id="footer">
-        <a href="http://external-link.com">External link</a>
-      </div>
-    </body>
-    </html>
-    """
+# class SapeLikeTestServer(SimpleFileTestServer):
+#     data = None
+#     extra_data = None
+#     server_format = 'xml'
+#
+#     def __init__(self, filename=None, data=None, extra_data=None,
+#             server_format=None):
+#         if data is not None:
+#             self.data = data
+#         if extra_data is not None:
+#             self.extra_data = extra_data
+#         if self.extra_data:
+#             self.data.update(self.extra_data)
+#         if server_format is not None:
+#             self.server_format = server_format
+#         raw_data = self.format_data(self.data)
+#         super(SapeLikeTestServer, self).__init__(filename=filename,
+#                 raw_data=raw_data)
+#
+#     def format_data(self, data):
+#         if self.server_format == 'php':
+#             return phpserialize.dumps(data)
+#         return ''
+#
+# class SapeTestServer(SapeLikeTestServer):
+#     """
+#     Test server to test Sape clients.
+#     """
+#     data = {
+#         '/': [
+#             '<a href="http://example1.com">example text 1</a>',
+#             '<a href="http://example2.com">example text 2</a>',
+#             ],
+#         '/path/1': [
+#             '<a href="http://example1.com">example text 1</a>',
+#             '<a href="http://example2.com">example text 2</a>',
+#             '<a href="http://example3.com">example text 3</a>',
+#             '<a href="http://example4.com">example text 4</a>',
+#             ],
+#         '/path/2': [
+#             'Plain text and <a href="url">link text</a>'],
+#         '__sape_new_url__': '<!--12345-->',
+#         '__sape_delimiter__': '. ',
+#         }
+#
+#     def format_data(self, data):
+#         def xml_make_page(uri, links):
+#             return '<page uri="%s">%s</page>' % (uri.encode('utf-8'),
+#                     ''.join(['<link><![CDATA[%s]]></link>' % s.encode('utf-8')
+#                         for s in links]))
+#
+#         if self.server_format == 'xml':
+#             pages = '\n'.join([xml_make_page(uri, links)
+#                 for uri, links in list(data.items()) if uri.startswith('/')])
+#
+#             lines = [
+#                     '<?xml version="1.0" encoding="UTF-8"?>',
+#                     '<sape delimiter="%s">' % data.get('__sape_delimiter__',
+#                         '').encode('utf-8'),
+#                     pages,
+#                     '<page uri="*"><![CDATA[%s]]></page>' % data.get(
+#                         '__sape_new_url__', '').encode('utf-8'),
+#                     '</sape>']
+#             return '\n'.join(lines)
+#         return super(SapeTestServer, self).format_data(data)
+#
+# class SapeArticlesIndexTestServer(SapeLikeTestServer):
+#     server_format = 'php'
+#     data = {
+#             'announcements': {
+#                 '/': [
+#                     '<a href="/articles/1">ann link 1</a>',
+#                     '<a href="/articles/1">ann link 2</a>'],
+#                 },
+#             'articles': {
+#                 '/articles/1': {
+#                     'id': '1',
+#                     'date_updated': '0',
+#                     'template_id': '1',
+#                     },
+#                 },
+#             'images': {},
+#             'templates': {
+#                 '1': {
+#                     'lifetime': '3600',
+#                     },
+#                 },
+#             'template_fields': [
+#                 'title', 'keywords', 'header', 'body',
+#                 ],
+#             'template_required_fields': {
+# 		'title': 'title',
+# 		'keywords': 'meta',
+# 		'header': 'h1',
+# 		'body': 'body',
+# 		},
+#             'ext_links_allowed': [],
+#             'checkCode': '<!-- announcements place -->',
+#             'announcements_delimiter': '|',
+#             }
+#
+#     def __init__(self, template_urls=[], **kw):
+#         kw.setdefault('data', self.data)
+#         for template_id, template_url in template_urls:
+#             kw['data']['templates'][template_id]['url'] = template_url
+#         super(SapeArticlesIndexTestServer, self).__init__(**kw)
+#
+# class SapeArticlesArticleTestServer(SapeLikeTestServer):
+#     server_format = 'php'
+#     data = {
+#             'date_updated': '0',
+#             'title': 'The article title',
+#             'keywords': 'The keywords',
+#             'header': 'The article header',
+#             'body': '<p>The article <a href="http://example.com">body</a>.</p>',
+#             }
+#
+# class SapeArticlesTemplateTestServer(SimpleFileTestServer):
+#     raw_data = """
+#     <html>
+#       <head>
+#         <title>{title}</title>
+#         <meta name="keywords" content="{keywords}"/>
+#       </head>
+#     <body>
+#       <h1>{header}</h1>
+#       {body}
+#       <div id="footer">
+#         <a href="http://external-link.com">External link</a>
+#       </div>
+#     </body>
+#     </html>
+#     """
 
 if __name__ == "__main__":
     import doctest
